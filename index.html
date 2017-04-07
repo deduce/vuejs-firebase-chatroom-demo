@@ -35,7 +35,6 @@
       firebase.initializeApp(config);
       var db = firebase.database();
 
-      // New data collection name: messages
       var onlineUsersRef = db.ref('online_users');
 
       onlineUsersRef.on("value", function(snap) {
