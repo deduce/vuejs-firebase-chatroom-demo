@@ -1,86 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
+
   <head>
     <meta charset="utf-8">
-    <title>VueFire Todo App Demo</title>
+    <title>VueFire Chatroom App Demo</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <script src="https://www.gstatic.com/firebasejs/3.7.5/firebase.js"></script>
     <script src="https://unpkg.com/vue/dist/vue.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vuefire/1.4.2/vuefire.js"></script>
   </head>
   <body>
-
-    <!--
-    Before running this example, make sure to:
-
-    1. cd path/to/vuefire
-    2. npm install
-    3. npm run build
-
-    Then you can open this file in your browser.
-    If you just prefer to see this example with
-    the latest published version of VueFire, you
-    play with the code in this fiddle:
-
-    https://jsfiddle.net/posva/wtyop5jy/
-    -->
-
     <div id="app">
-      <input
-        v-model.trim="newTodoText"
-        @keyup.enter="addTodo"
-        placeholder="Add new todo"
-      >
-      <ul>
-        <li v-for="todo in todos">
-          <input
-            :value="todo.text"
-            @input="updateTodoText(todo, $event.target.value)"
-          >
-          <button @click="removeTodo(todo)">X</button>
-        </li>
-      </ul>
+      <div class="col-md-2 userlist">
+        <div class="panel-heading">
+          <span class="glyphicon glyphicon-user"></span> Online users: {{ onlineUsers }}
+        </div>
+      </div>
     </div>
 
     <script>
       // Initialize Firebase
       var config = {
-          apiKey: "AIzaSyATUnjOQALIswlRNXrBimuQCiocmTpM9pA",
-          authDomain: "kumachat-c57a2.firebaseapp.com",
-          databaseURL: "https://kumachat-c57a2.firebaseio.com",
-          projectId: "kumachat-c57a2",
-          storageBucket: "kumachat-c57a2.appspot.com",
-          messagingSenderId: "882275654453"
+        apiKey: "AIzaSyATUnjOQALIswlRNXrBimuQCiocmTpM9pA",
+        authDomain: "kumachat-c57a2.firebaseapp.com",
+        databaseURL: "https://kumachat-c57a2.firebaseio.com",
+        projectId: "kumachat-c57a2",
+        storageBucket: "kumachat-c57a2.appspot.com",
+        messagingSenderId: "882275654453"
       };
 
       /* global Vue, firebase */
-      var db = firebase.initializeApp(config).database();
-      var todosRef = db.ref('todos')
+      // var db = firebase.initializeApp(config).database();
+      // var database = firebase.database();
+      firebase.initializeApp(config);
+      var db = firebase.database();
 
-      new Vue({
+      // New data collection name: messages
+      var onlineUsersRef = db.ref('online_users');
+
+      onlineUsersRef.on("value", function(snap) {
+        vue.onlineUsers = snap.numChildren();
+      })
+
+      var vue = new Vue({
         el: '#app',
         data: {
-          newTodoText: ''
+          onlineUsers: 0
+        },
+        created: function() {
+          var connectedRef = firebase.database().ref(".info/connected");
+          connectedRef.on("value", function(snap) {
+            if (snap.val() === true) {
+              var con = onlineUsersRef.push(true);
+              con.onDisconnect().remove()
+              console.log("connected");
+            } else {
+              console.log("not connected");
+            }
+          });
+          this.onlineUsers++;
         },
         firebase: {
-          todos: todosRef.limitToLast(25)
+
+
+
         },
-        methods: {
-          addTodo: function () {
-            if (this.newTodoText) {
-              todosRef.push({
-                text: this.newTodoText
-              })
-              this.newTodoText = ''
-            }
-          },
-          updateTodoText: function (todo, newText) {
-            todosRef.child(todo['.key']).child('text').set(newText)
-          },
-          removeTodo: function (todo) {
-            todosRef.child(todo['.key']).remove()
-          }
-        }
+        methods: {}
       })
     </script>
   </body>
+
 </html>
