@@ -1,72 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
 
-  <head>
-    <meta charset="utf-8">
-    <title>VueFire Chatroom App Demo</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <script src="https://www.gstatic.com/firebasejs/3.7.5/firebase.js"></script>
-    <script src="https://unpkg.com/vue/dist/vue.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vuefire/1.4.2/vuefire.js"></script>
-  </head>
-  <body>
-    <div id="app">
-      <div class="col-md-2 userlist">
-        <div class="panel-heading">
-          <span class="glyphicon glyphicon-user"></span> Online users: {{ onlineUsers }}
-        </div>
+   <head>
+      <meta charset="utf-8">
+      <title>VueFire Chatroom App Demo</title>
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+      <script src="https://www.gstatic.com/firebasejs/3.7.5/firebase.js"></script>
+      <script src="https://unpkg.com/vue/dist/vue.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/vuefire/1.4.2/vuefire.js"></script>
+   </head>
+
+   <body>
+      <div id="app">
+         <div class="col-md-2 userlist">
+            <div class="panel-heading">
+               <span class="glyphicon glyphicon-user"></span> Online users: {{ onlineUsers }}
+            </div>
+         </div>
+
+         <div is="chat-form"></div>
+         <div is="message-list"></div>
       </div>
-    </div>
 
-    <script>
-      // Initialize Firebase
-      var config = {
-        apiKey: "AIzaSyATUnjOQALIswlRNXrBimuQCiocmTpM9pA",
-        authDomain: "kumachat-c57a2.firebaseapp.com",
-        databaseURL: "https://kumachat-c57a2.firebaseio.com",
-        projectId: "kumachat-c57a2",
-        storageBucket: "kumachat-c57a2.appspot.com",
-        messagingSenderId: "882275654453"
-      };
+      <script type="text/x-template" id="message-list-template">
+         <div class="message-list">
+            <ul>
+               <li class="item" v-for="item in sortedList">
+                  <div class="message">
+                     <span>{{item["message"]}}</span>
+                  </div>
+                  <div class="status"><b>{{item["name"]}}</b> {{item["timestamp"] | date}}</div>
+               </li>
+            </ul>
+         </div>
+      </script>
 
-      /* global Vue, firebase */
-      // var db = firebase.initializeApp(config).database();
-      // var database = firebase.database();
-      firebase.initializeApp(config);
-      var db = firebase.database();
+      <script type="text/x-template" id="chat-form-template">
+          <div class="chat-form">
+              <div class="form-row">
+                  <input id="name" type="text" v-model="name" placeholder="Nickname"/>
+              </div>
+              <div class="form-row">
+                  <input v-model="message" ref="message_field" placeholder="Message">
+              </div>
+              <div class="form-row">
+                  <input type="submit" @click="newMessage" value="Send">
+              </div>
+          </div>
+      </script>
 
-      var onlineUsersRef = db.ref('online_users');
+      <script>
+         // Initialize Firebase
+         var config = {
+            apiKey: "AIzaSyATUnjOQALIswlRNXrBimuQCiocmTpM9pA",
+            authDomain: "kumachat-c57a2.firebaseapp.com",
+            databaseURL: "https://kumachat-c57a2.firebaseio.com",
+            projectId: "kumachat-c57a2",
+            storageBucket: "kumachat-c57a2.appspot.com",
+            messagingSenderId: "882275654453"
+         };
 
-      onlineUsersRef.on("value", function(snap) {
-        vue.onlineUsers = snap.numChildren();
-      })
+         firebase.initializeApp(config);
+         var db = firebase.database();
 
-      var vue = new Vue({
-        el: '#app',
-        data: {
-          onlineUsers: 0
-        },
-        created: function() {
-          var connectedRef = firebase.database().ref(".info/connected");
-          connectedRef.on("value", function(snap) {
-            if (snap.val() === true) {
-              var con = onlineUsersRef.push(true);
-              con.onDisconnect().remove()
-              console.log("connected");
-            } else {
-              console.log("not connected");
-            }
-          });
-          this.onlineUsers++;
-        },
-        firebase: {
+         var onlineUsersRef = db.ref('online_users');
 
+         // New data collection name: messages
+         var messagesRef = firebase.database().ref('chat_messages');
 
+         onlineUsersRef.on("value", function(snap) {
+            vue.onlineUsers = snap.numChildren();
+         })
 
-        },
-        methods: {}
-      })
-    </script>
-  </body>
+         Vue.component('message-list', {
+            template: '#message-list-template',
+            firebase: {
+               list: messagesRef.orderByChild("timestamp").limitToLast(25)
+            },
+            filters: {
+               date: function(time) {
+                  var theDate = new Date(time);
+                  return theDate.toGMTString();
+               }
+            },
+            computed: {
+               sortedList: function() {
+                  return this.list.reverse()
+               }
+            },
+         });
+
+         Vue.component('chat-form', {
+           template: '#chat-form-template',
+           data: function () {
+               return {
+                   "message": null,
+                   "name": null,
+               }
+           },
+           methods: {
+               newMessage: function () {
+                   messagesRef.push({
+                       message: this.message,
+                       name: this.name,
+                       timestamp: firebase.database.ServerValue.TIMESTAMP
+                   });
+                   this.message = null;
+                   this.$refs.message_field.focus();
+               }
+           }
+       });
+
+         var vue = new Vue({
+            el: '#app',
+            data: {
+               onlineUsers: 0
+            },
+            created: function() {
+               var connectedRef = firebase.database().ref(".info/connected");
+               connectedRef.on("value", function(snap) {
+                  if (snap.val() === true) {
+                     var con = onlineUsersRef.push(true);
+                     con.onDisconnect().remove()
+                     console.log("connected");
+                  } else {
+                     console.log("not connected");
+                  }
+               });
+               this.onlineUsers++;
+            },
+            firebase: {
+            },
+            methods: {}
+         })
+      </script>
+   </body>
 
 </html>
